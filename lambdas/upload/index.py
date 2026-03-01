@@ -11,7 +11,7 @@ dynamodb = boto3.resource('dynamodb')
 
 BUCKET_NAME = os.environ['BUCKET_NAME']
 TABLE_NAME = os.environ['TABLE_NAME']
-EXPIRY_HOURS = int(os.environ.get('EXPIRY_HOURS', 24))
+EXPIRY_HOURS = int(os.environ.get('EXPIRY_HOURS', 0.25))
 
 def lambda_handler(event, context):
     try:

@@ -13,14 +13,12 @@ TABLE_NAME = os.environ['TABLE_NAME']
 
 def lambda_handler(event, context):
     try:
-        # Get capsule_id from path parameters
         path_params = event.get('pathParameters', {}) or {}
         capsule_id = path_params.get('capsule_id')
         
         if not capsule_id:
             return response(400, {'error': 'capsule_id is required'})
 
-        # Get requested action from query string
         query_params = event.get('queryStringParameters', {}) or {}
         action = query_params.get('action', 'preview')
 
@@ -32,13 +30,18 @@ def lambda_handler(event, context):
         if not item:
             return response(404, {'error': 'Capsule not found or has expired'})
 
-        # Check if capsule is expired
+        # Check expiry
         now = int(time.time())
         if item.get('ttl', 0) < now:
             return response(410, {'error': 'Capsule has expired. Data has been deleted.'})
 
         if item.get('status') != 'active':
             return response(403, {'error': 'Capsule is no longer active'})
+
+        # Get file details from item
+        file_name = item.get('file_name', 'unknown')
+        file_type = item.get('file_type', 'text/plain')
+        s3_key = item['s3_key']
 
         # Increment access counter
         table.update_item(
@@ -47,44 +50,34 @@ def lambda_handler(event, context):
             ExpressionAttributeValues={':val': 1}
         )
 
-        # Fetch file from S3 (internal — no public URL)
-        s3_key = item['s3_key']
-        s3_object = s3.get_object(Bucket=BUCKET_NAME, Key=s3_key)
-        file_content = s3_object['Body'].read()
-        file_type = item.get('file_type', 'text/plain')
-        file_name = item.get('file_name', 'file')
-
-        # ---- CONTROLLED INTERACTION LAYER ----
-        # Action: preview — return rendered/text view, never raw binary download
-        if action == 'preview':
-            return handle_preview(file_content, file_type, file_name, item)
-
-        # Action: query — for CSV/structured data, return row count and column names
-        elif action == 'query':
-            return handle_query(file_content, file_type, query_params)
-
-        # Action: partial_export — return only first N rows/chars
-        elif action == 'partial_export':
-            return handle_partial_export(file_content, file_type, query_params)
-
-        # Action: metadata — return capsule info only, no content
-        elif action == 'metadata':
+        # ---- METADATA: no S3 fetch needed ----
+        if action == 'metadata':
             return response(200, {
                 'capsule_id': capsule_id,
                 'file_name': file_name,
                 'file_type': file_type,
-                'created_at': item['created_at'],
-                'expires_at': item['ttl'],
-                'access_count': item.get('access_count', 0),
+                'created_at': int(item['created_at']),
+                'expires_at': int(item['ttl']),
+                'access_count': int(item.get('access_count', 0)),
                 'status': item['status']
             })
 
+        # ---- ALL OTHER ACTIONS: fetch from S3 ----
+        s3_object = s3.get_object(Bucket=BUCKET_NAME, Key=s3_key)
+        file_content = s3_object['Body'].read()
+
+        if action == 'preview':
+            return handle_preview(file_content, file_type, file_name, item)
+        elif action == 'query':
+            return handle_query(file_content, file_type, query_params)
+        elif action == 'partial_export':
+            return handle_partial_export(file_content, file_type, query_params)
         else:
             return response(400, {'error': f'Unknown action: {action}. Valid actions: preview, query, partial_export, metadata'})
 
     except Exception as e:
         print(f"Error: {str(e)}")
-        return response(500, {'error': 'Internal server error'})
+        return response(500, {'error': 'Internal server error', 'detail': str(e)})
 
 
 def handle_preview(file_content, file_type, file_name, item):

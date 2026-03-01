@@ -23,7 +23,6 @@ resource "aws_iam_role" "lambda_role" {
   }
 }
 
-# Policy: S3 access (only to capsule bucket)
 resource "aws_iam_policy" "lambda_s3_policy" {
   name = "${var.project_name}-lambda-s3"
 
@@ -35,9 +34,13 @@ resource "aws_iam_policy" "lambda_s3_policy" {
         Action = [
           "s3:PutObject",
           "s3:GetObject",
-          "s3:DeleteObject"
+          "s3:DeleteObject",
+          "s3:ListBucket"
         ]
-        Resource = "${aws_s3_bucket.capsule_storage.arn}/*"
+        Resource = [
+          aws_s3_bucket.capsule_storage.arn,
+          "${aws_s3_bucket.capsule_storage.arn}/*"
+        ]
       }
     ]
   })

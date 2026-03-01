@@ -3,7 +3,7 @@
 variable "aws_region" {
   description = "AWS region for all resources"
   type        = string
-  default     = "us-east-1"
+  default     = "ca-central-1"
 }
 
 variable "project_name" {
@@ -15,7 +15,7 @@ variable "project_name" {
 variable "expiry_hours" {
   description = "How many hours before a capsule expires"
   type        = number
-  default     = 24
+  default     = 0.25
 }
 
 variable "environment" {
