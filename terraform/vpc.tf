@@ -92,3 +92,16 @@ resource "aws_route_table_association" "private_2" {
   subnet_id      = aws_subnet.private_2.id
   route_table_id = aws_route_table.private.id
 }
+
+resource "aws_vpc_endpoint" "sns" {
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.aws_region}.sns"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = [aws_subnet.private_1.id, aws_subnet.private_2.id]
+  security_group_ids  = [aws_security_group.lambda_sg.id]
+  private_dns_enabled = true
+
+  tags = {
+    Name = "${var.project_name}-sns-endpoint"
+  }
+}

@@ -89,6 +89,24 @@ resource "aws_iam_policy" "lambda_vpc_policy" {
   })
 }
 
+resource "aws_iam_policy" "lambda_sns_policy" {
+  name = "${var.project_name}-lambda-sns"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = [
+          "sns:Publish",
+          "sns:Subscribe"    # ← add this
+        ]
+        Resource = aws_sns_topic.capsule_notifications.arn
+      }
+    ]
+  })
+}
+
 # Attach AWS managed CloudWatch Logs policy
 resource "aws_iam_role_policy_attachment" "lambda_logs" {
   role       = aws_iam_role.lambda_role.name
@@ -108,4 +126,9 @@ resource "aws_iam_role_policy_attachment" "lambda_dynamodb" {
 resource "aws_iam_role_policy_attachment" "lambda_vpc" {
   role       = aws_iam_role.lambda_role.name
   policy_arn = aws_iam_policy.lambda_vpc_policy.arn
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_sns" {
+  role       = aws_iam_role.lambda_role.name
+  policy_arn = aws_iam_policy.lambda_sns_policy.arn
 }

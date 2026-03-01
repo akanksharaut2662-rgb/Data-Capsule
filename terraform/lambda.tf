@@ -7,7 +7,7 @@ resource "aws_lambda_function" "upload" {
   handler       = "index.lambda_handler"
   runtime       = "python3.12"
   role          = aws_iam_role.lambda_role.arn
-  timeout       = 30
+  timeout       = 60
   memory_size   = 256
 
   source_code_hash = filebase64sha256("${path.module}/upload.zip")
@@ -17,14 +17,10 @@ resource "aws_lambda_function" "upload" {
       BUCKET_NAME  = aws_s3_bucket.capsule_storage.bucket
       TABLE_NAME   = aws_dynamodb_table.capsules.name
       EXPIRY_HOURS = tostring(var.expiry_hours)
+      SNS_TOPIC_ARN  = aws_sns_topic.capsule_notifications.arn  
+      FRONTEND_URL   = "http://${aws_s3_bucket.frontend.bucket}.s3-website.${var.aws_region}.amazonaws.com" 
     }
   }
-
-  vpc_config {
-    subnet_ids         = [aws_subnet.private_1.id, aws_subnet.private_2.id]
-    security_group_ids = [aws_security_group.lambda_sg.id]
-  }
-
   tags = {
     Name = "${var.project_name}-upload"
   }
