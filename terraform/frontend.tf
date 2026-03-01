@@ -1,0 +1,72 @@
+# terraform/frontend.tf
+
+# ── Frontend S3 bucket (public static website) ──
+resource "aws_s3_bucket" "frontend" {
+  bucket = "${var.project_name}-frontend-${random_id.suffix.hex}"
+
+  tags = {
+    Name        = "${var.project_name}-frontend"
+    Environment = var.environment
+  }
+}
+
+# Enable static website hosting
+resource "aws_s3_bucket_website_configuration" "frontend" {
+  bucket = aws_s3_bucket.frontend.id
+
+  index_document {
+    suffix = "index.html"
+  }
+
+  error_document {
+    key = "index.html"
+  }
+}
+
+# Allow public access (needed for static website)
+resource "aws_s3_bucket_public_access_block" "frontend" {
+  bucket = aws_s3_bucket.frontend.id
+
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
+}
+
+# Bucket policy — allow anyone to read the HTML file
+resource "aws_s3_bucket_policy" "frontend" {
+  bucket     = aws_s3_bucket.frontend.id
+  depends_on = [aws_s3_bucket_public_access_block.frontend]
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "PublicReadGetObject"
+        Effect    = "Allow"
+        Principal = "*"
+        Action    = "s3:GetObject"
+        Resource  = "${aws_s3_bucket.frontend.arn}/*"
+      }
+    ]
+  })
+}
+
+# Upload index.html automatically during terraform apply
+resource "aws_s3_object" "frontend_html" {
+  bucket       = aws_s3_bucket.frontend.id
+  key          = "index.html"
+  source       = "${path.module}/../frontend/index.html"
+  content_type = "text/html"
+
+  # Re-upload if file changes
+  etag = filemd5("${path.module}/../frontend/index.html")
+
+  depends_on = [aws_s3_bucket_website_configuration.frontend]
+}
+
+# ── Output the live URL ──
+output "frontend_url" {
+  description = "Your Data Capsule live website URL"
+  value       = "http://${aws_s3_bucket.frontend.bucket}.s3-website.${var.aws_region}.amazonaws.com"
+}
