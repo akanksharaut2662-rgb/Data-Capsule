@@ -461,6 +461,7 @@ body::after {
 let cap = null;
 let ticker = null;
 let selFile = null;
+let pollInterval = null;
 const TOTAL = 24*3600;
 
 const $ = id => document.getElementById(id);
@@ -512,6 +513,7 @@ function applyState(state){
 
   // body bg + saturation
   if(state==='expired'){
+    if(pollInterval) clearInterval(pollInterval);
     document.body.style.background='var(--bg-expired)';
     document.body.style.filter='saturate(0.55)';
     $('expCard').classList.add('show');
@@ -594,6 +596,7 @@ async function loadCapsule(id, expiresAt){
     $('resultOut').classList.remove('show');
 
     startTicker(cap.expiresAt);
+    startPolling(id);
     log(`Capsule loaded: ${id.slice(0,8)}...`,'ok');
   }catch(e){toast('Network error','err');log(e.message,'err');}
 }
@@ -723,6 +726,38 @@ $('upBtn').addEventListener('click',async()=>{
   };
   reader.readAsDataURL(selFile);
 });
+
+// ── AUTO POLL (checks if capsule was deleted remotely) ──
+
+function startPolling(id) {
+  if(pollInterval) clearInterval(pollInterval);
+  pollInterval = setInterval(async () => {
+    if(!cap || !api()) return;
+    try {
+      const res  = await fetch(`${api()}/capsule/${id}?action=metadata`);
+      if(res.status === 410 || res.status === 404) {
+        clearInterval(pollInterval);
+        applyState('expired');
+        if(ticker) clearInterval(ticker);
+        $('capTimer').textContent = 'DELETED';
+        log('Capsule was remotely deleted', 'wrn');
+        toast('Capsule no longer available', 'err');
+      } else if(res.ok) {
+        const data = await res.json();
+        if(data.status !== 'active') {
+          clearInterval(pollInterval);
+          applyState('expired');
+          if(ticker) clearInterval(ticker);
+          $('capTimer').textContent = 'DELETED';
+          log('Capsule was remotely deleted', 'wrn');
+          toast('Capsule no longer available', 'err');
+        }
+      }
+    } catch(e) {
+      // silent fail — don't interrupt the user
+    }
+  }, 10000); // check every 10 seconds
+}
 
 // ── INIT ──
 log('System initialized','ok');
