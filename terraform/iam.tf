@@ -99,7 +99,8 @@ resource "aws_iam_policy" "lambda_sns_policy" {
         Effect   = "Allow"
         Action   = [
           "sns:Publish",
-          "sns:Subscribe"    # ← add this
+          "sns:Subscribe"    
+          "sns:ListSubscriptionsByTopic"
         ]
         Resource = aws_sns_topic.capsule_notifications.arn
       }

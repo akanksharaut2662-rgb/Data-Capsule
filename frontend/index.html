@@ -349,7 +349,7 @@ body::after {
 
   <!-- HEADER -->
   <div class="header">
-    <div class="logo">DATA<em>CAPSULE</em> <span style="font-size:10px;color:var(--text-muted);font-weight:300;letter-spacing:2px;">// SECURE DATA ROOM</span></div>
+    <div class="logo">DATA<em>CAPSULE</em> <span style="font-size:10px;color:var(--text-muted);font-weight:300;letter-spacing:2px;"></span></div>
     <div class="sys-status"><span class="sys-dot"></span> SYSTEM ONLINE</div>
   </div>
 
@@ -357,13 +357,6 @@ body::after {
   <div class="api-bar">
     <label>▸ API ENDPOINT</label>
     <input id="apiUrl" type="text" placeholder="https://YOUR-ID.execute-api.ca-central-1.amazonaws.com/dev"/>
-  </div>
-
-  <!-- TOP LABELS -->
-  <div class="top-labels">
-    <span class="top-label">CREATE SECURE DATA CAPSULE</span>
-    <span class="top-label">CAPSULE ID DISPLAY</span>
-    <span class="top-label">FILE UPLOAD PANEL</span>
   </div>
 
   <!-- MAIN ROW -->
@@ -395,7 +388,7 @@ body::after {
             <button class="cap-btn" id="bPrev"    disabled onclick="doAction('preview')">Preview</button>
             <button class="cap-btn" id="bQuery"   disabled onclick="doAction('query')">Query</button>
             <button class="cap-btn" id="bRedact"  disabled onclick="doAction('preview')">Redacted View</button>
-            <button class="cap-btn" id="bPartial" disabled onclick="doAction('partial_export')">Partial Export</button>
+            <button class="cap-btn" id="bPartial" disabled onclick="doAction('partial_export')">Export</button>
           </div>
         </div>
       </div>
@@ -420,7 +413,7 @@ body::after {
         <div class="up-text">Drag & Drop or Browse Files<br/><span style="font-size:10px;">Any file type supported</span></div>
         <div class="up-file" id="upFile">No file selected</div>
       </div>
-      <input class="field" type="email" id="upEmail" placeholder="Uploader email (optional)"/>
+      <input class="field" type="email" id="upEmail" placeholder="Recepient email"/>
       <button class="btn btn-primary" id="upBtn" disabled>
         <span id="upTxt">Select a file first</span>
       </button>
@@ -524,6 +517,8 @@ function applyState(state){
     $('expCard').classList.add('show');
     $('expPlaceholder').style.display='none';
     enableTabs(false);
+    $('resultOut').innerHTML = '';           
+    $('resultOut').classList.remove('show');
   } else if(state==='warning'){
     document.body.style.background='var(--bg-warn)';
     document.body.style.filter='none';
@@ -549,7 +544,7 @@ function startTicker(expiresAt){
     const m=String(Math.floor((rem%3600)/60)).padStart(2,'0');
     const s=String(rem%60).padStart(2,'0');
     $('capTimer').textContent=`${h}:${m}:${s}`;
-    applyState(rem<7200?'warning':'active');
+    applyState(rem<300?'warning':'active');
   }
   tick(); ticker=setInterval(tick,1000);
 }
@@ -645,15 +640,31 @@ async function doAction(action){
 }
 
 // ── DELETE ──
-function deleteCapsule(){
+async function deleteCapsule(){
   if(!cap)return;
   if(!confirm(`Delete capsule ${cap.id.slice(0,8)}...?\nThis cannot be undone.`))return;
-  log('Capsule marked for deletion','wrn');
-  toast('Capsule deleted','info');
-  applyState('expired');
-  enableTabs(false);
-  if(ticker)clearInterval(ticker);
-  $('capTimer').textContent='DELETED';
+
+  try{
+    const res = await fetch(`${api()}/capsule/${cap.id}`, {
+      method: 'DELETE'
+    });
+    const data = await res.json();
+
+    if(res.ok){
+      log('Capsule permanently deleted','wrn');
+      toast('Capsule deleted — data destroyed','info');
+      applyState('expired');
+      enableTabs(false);
+      if(ticker)clearInterval(ticker);
+      $('capTimer').textContent='DELETED';
+    } else {
+      toast(data.error || 'Delete failed','err');
+      log('Delete failed: ' + (data.error||''),'err');
+    }
+  } catch(e){
+    toast('Network error','err');
+    log(e.message,'err');
+  }
 }
 
 // ── FILE UPLOAD ──

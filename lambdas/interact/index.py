@@ -50,6 +50,11 @@ def lambda_handler(event, context):
             ExpressionAttributeValues={':val': 1}
         )
 
+        # ---- HANDLE DELETE METHOD ----
+        http_method = event.get('requestContext', {}).get('http', {}).get('method', 'GET')
+        if http_method == 'DELETE':
+            return handle_delete(capsule_id, table)
+
         # ---- METADATA: no S3 fetch needed ----
         if action == 'metadata':
             return response(200, {
@@ -201,6 +206,41 @@ def handle_partial_export(file_content, file_type, query_params):
 
 def file_name_is_csv(file_type):
     return 'csv' in file_type or file_type == 'text/csv'
+
+def handle_delete(capsule_id, table):
+    """Immediately mark capsule as deleted and remove from S3."""
+    try:
+        # Get the item first to find s3_key
+        result = table.get_item(Key={'capsule_id': capsule_id})
+        item = result.get('Item')
+
+        if not item:
+            return response(404, {'error': 'Capsule not found'})
+
+        # Delete file from S3
+        s3_key = item.get('s3_key')
+        if s3_key:
+            try:
+                s3.delete_object(Bucket=BUCKET_NAME, Key=s3_key)
+            except Exception as e:
+                print(f"S3 delete failed: {str(e)}")
+
+        # Mark as deleted in DynamoDB immediately
+        table.update_item(
+            Key={'capsule_id': capsule_id},
+            UpdateExpression='SET #status = :deleted',
+            ExpressionAttributeNames={'#status': 'status'},
+            ExpressionAttributeValues={':deleted': 'deleted'}
+        )
+
+        return response(200, {
+            'message': 'Capsule permanently deleted',
+            'capsule_id': capsule_id
+        })
+
+    except Exception as e:
+        print(f"Delete error: {str(e)}")
+        return response(500, {'error': 'Delete failed', 'detail': str(e)})
 
 
 def response(status_code, body):
