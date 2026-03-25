@@ -1,12 +1,12 @@
-Data Capsule
+### Data Capsule
 Serverless Secure Data Room | AWS | Terraform
 
-Overview
+### Overview
 Data Capsule is a serverless, cloud-native secure data room that provides time-limited, compute-mediated access to sensitive files.
 Unlike traditional file sharing systems that expose downloadable links, Data Capsule prevents uncontrolled file possession by routing all interactions through backend compute. Files are stored privately and automatically deleted after expiry.
 The infrastructure is fully provisioned using Terraform to ensure reproducibility and consistency across environments.
 
-Architecture
+### Architecture
 The system follows a serverless, event-driven design:
 Frontend
 •	Static web interface hosted on Amazon S3
@@ -25,7 +25,7 @@ Notifications
 Infrastructure
 •	Terraform (Infrastructure as Code)
 
-Request Flow
+### Request Flow
 1.	User uploads file via UI.
 2.	API Gateway invokes Lambda.
 3.	File stored in private S3 bucket.
@@ -34,7 +34,7 @@ Request Flow
 6.	After TTL expiration, cleanup Lambda deletes associated objects.
 No direct S3 object exposure is allowed.
 
-Key Engineering Decisions
+### Key Engineering Decisions
 •	Compute-Mediated Access
 Prevents direct file downloads and enforces controlled interaction.
 •	TTL-Based Lifecycle
@@ -46,14 +46,14 @@ Terraform ensures reproducible deployments and environment consistency.
 •	Least Privilege IAM
 Lambda roles restricted to minimal required permissions.
 
-Security Considerations
+### Security Considerations
 •	S3 Block Public Access enabled
 •	Server-side encryption (AES-256)
 •	No pre-signed download URLs
 •	API Gateway as single entry point
 •	Automated deletion of expired data
 
-Deployment
+### Deployment
 Requirements
 •	AWS CLI configured
 •	Terraform installed
@@ -68,13 +68,13 @@ Infrastructure provisioning includes:
 •	EventBridge rules
 •	IAM roles
 
-Scalability & Cost
+### Scalability & Cost
 •	Fully serverless → automatic scaling
 •	Pay-per-use pricing model
 •	Estimated cost under light usage: <$1/month
 The system scales horizontally with Lambda concurrency and API Gateway throughput.
 
-Future Enhancements
+### Future Enhancements
 •	Authentication via Amazon Cognito
 •	CI/CD pipeline integration
 •	CloudFront distribution
@@ -82,7 +82,7 @@ Future Enhancements
 •	KMS-managed encryption keys
 •	Access analytics and auditing
 
-What This Project Demonstrates
+### What This Project Demonstrates
 •	Cloud-native architecture design
 •	Multi-service AWS integration
 •	Event-driven lifecycle management
